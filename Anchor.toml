@@ -7,7 +7,12 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-atom_x = "CiMpd8KPfsyozV4VvwLVp4JRBJp9LEHDQ1xZE21AX6zN"
+swap_router = "8EqQZDrpuXAtWLpbv6q8PfCLF7hAJqvAKfgLs3Yoihy2"
+vault = "AtomXVault1111111111111111111111111111111"
+
+[programs.devnet]
+swap_router = "8EqQZDrpuXAtWLpbv6q8PfCLF7hAJqvAKfgLs3Yoihy2"
+vault = "AtomXVault1111111111111111111111111111111"
 
 [registry]
 url = "https://api.apr.dev"
