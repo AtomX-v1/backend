@@ -4,7 +4,7 @@ use anchor_spl::associated_token::AssociatedToken;
 use swap_router::cpi::accounts::ExecuteSwaps;
 use swap_router::cpi::execute_swaps;
 use swap_router::SwapInstruction;
-declare_id!("8KGRV7RUPFwckpXbix3ZtPaphQiGz4S3BeUNpYHZubbd");
+declare_id!("EggEs5AbpAp4rMWc8XmHCr8PwgFSmh7fFSH5Hjay9mgW");
 
 #[program]
 pub mod vault {
