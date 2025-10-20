@@ -1,9 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use anchor_spl::associated_token::AssociatedToken;
-use swap_router::cpi::accounts::ExecuteSwaps;
-use swap_router::cpi::execute_swaps;
-use swap_router::SwapInstruction;
 declare_id!("EggEs5AbpAp4rMWc8XmHCr8PwgFSmh7fFSH5Hjay9mgW");
 
 #[program]
@@ -17,7 +14,6 @@ pub mod vault {
         vault.total_shares = 0;
         vault.bump = ctx.bumps.vault;
         
-        msg!(" Vault initialized with swap router: {}", vault.swap_router);
         Ok(())
     }
 
@@ -25,7 +21,6 @@ pub mod vault {
         let vault = &mut ctx.accounts.vault;
         let user_position = &mut ctx.accounts.user_position;
 
-        // Transfer tokens vers le vault
         token::transfer(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -38,7 +33,6 @@ pub mod vault {
             amount,
         )?;
 
-        // Calculer shares
         let shares = if vault.total_shares == 0 {
             amount
         } else {
@@ -53,63 +47,57 @@ pub mod vault {
         user_position.owner = ctx.accounts.user.key();
         vault.total_shares = vault.total_shares.checked_add(shares).unwrap();
 
-        msg!(" Deposited {} tokens, received {} shares", amount, shares);
         Ok(())
     }
 
-    
-    pub fn execute_arbitrage_via_router(
-        ctx: Context<ExecuteArbitrageViaRouter>,
-        swaps: Vec<SwapInstruction>,
+    pub fn execute_arbitrage<'info>(
+        ctx: Context<'_, '_, '_, 'info, ExecuteArbitrage<'info>>,
+        jupiter_instruction_data: Vec<u8>,
         min_profit: u64,
     ) -> Result<()> {
         let vault = &ctx.accounts.vault;
-        
-        
-        require_keys_eq!(
-            ctx.accounts.swap_router_program.key(),
-            vault.swap_router,
-            ErrorCode::InvalidSwapRouter
-        );
 
         let initial_balance = ctx.accounts.vault_token.amount;
 
-        // CPI vers le SwapRouter
         let vault_bump = vault.bump;
-        let seeds = &[b"vault".as_ref(), &[vault_bump]];
-        let signer_seeds = &[&seeds[..]];
+        let vault_seeds_data = vec![b"vault".to_vec(), vec![vault_bump]];
+        let seeds_slice: Vec<&[u8]> = vault_seeds_data.iter().map(|s| s.as_slice()).collect();
+        let signer_seeds = &[seeds_slice.as_slice()];
 
         let cpi_program = ctx.accounts.swap_router_program.to_account_info();
-        let cpi_accounts = ExecuteSwaps {
+        let cpi_accounts = swap_router::cpi::accounts::ExecuteVaultJupiterSwap {
             router_state: ctx.accounts.router_state.to_account_info(),
-            user_token_in: ctx.accounts.vault_token.to_account_info(),
-            user_token_out: ctx.accounts.vault_token.to_account_info(),
-            pool_token_in: ctx.accounts.pool_token_in.to_account_info(),
-            pool_token_out: ctx.accounts.pool_token_out.to_account_info(),
-            pool_account: ctx.accounts.pool_account.to_account_info(),
-            pool_authority: ctx.accounts.pool_authority.to_account_info(),
-            dex_program: ctx.accounts.dex_program.to_account_info(),
-            authority: vault.to_account_info(),
-            token_program: ctx.accounts.token_program.to_account_info(),
-            associated_token_program: ctx.accounts.associated_token_program.to_account_info(),
-            system_program: ctx.accounts.system_program.to_account_info(),
+            vault_authority: vault.to_account_info(),
+            jupiter_program: ctx.accounts.jupiter_program.to_account_info(),
         };
-        
+
         let cpi_ctx = CpiContext::new_with_signer(
             cpi_program,
             cpi_accounts,
             signer_seeds,
-        );
+        ).with_remaining_accounts(ctx.remaining_accounts.to_vec());
 
-        execute_swaps(cpi_ctx, swaps)?;
+        swap_router::cpi::execute_vault_jupiter_swap(
+            cpi_ctx,
+            jupiter_instruction_data,
+            vault_seeds_data.clone(),
+        )?;
 
+        ctx.accounts.vault_token.reload()?;
         let final_balance = ctx.accounts.vault_token.amount;
-        let profit = final_balance.checked_sub(initial_balance).unwrap();
+
+        let profit = final_balance.checked_sub(initial_balance)
+            .ok_or(ErrorCode::InsufficientProfit)?;
 
         require!(profit >= min_profit, ErrorCode::InsufficientProfit);
 
-        let executor_fee = profit.checked_mul(10).unwrap().checked_div(100).unwrap();
-        
+        let executor_fee = profit.checked_mul(10)
+            .and_then(|v| v.checked_div(100))
+            .ok_or(ErrorCode::MathOverflow)?;
+
+        let seeds_ref: Vec<&[u8]> = vault_seeds_data.iter().map(|s| s.as_slice()).collect();
+        let signer = &[seeds_ref.as_slice()];
+
         token::transfer(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
@@ -118,7 +106,7 @@ pub mod vault {
                     to: ctx.accounts.executor_token.to_account_info(),
                     authority: vault.to_account_info(),
                 },
-                signer_seeds,
+                signer,
             ),
             executor_fee,
         )?;
@@ -130,8 +118,6 @@ pub mod vault {
             vault_profit: profit - executor_fee,
         });
 
-        msg!(" Arbitrage executed! Total profit: {}, Executor: {}, Vault: {}", 
-             profit, executor_fee, profit - executor_fee);
         Ok(())
     }
 
@@ -168,12 +154,9 @@ pub mod vault {
         user_position.shares = user_position.shares.checked_sub(shares).unwrap();
         vault.total_shares = vault.total_shares.checked_sub(shares).unwrap();
 
-        msg!(" Withdrawn {} tokens for {} shares", amount, shares);
         Ok(())
     }
 }
-
-// ========== ACCOUNTS ==========
 
 #[derive(Accounts)]
 pub struct InitializeVault<'info> {
@@ -223,7 +206,7 @@ pub struct Deposit<'info> {
 }
 
 #[derive(Accounts)]
-pub struct ExecuteArbitrageViaRouter<'info> {
+pub struct ExecuteArbitrage<'info> {
     #[account(mut, seeds = [b"vault"], bump = vault.bump)]
     pub vault: Account<'info, Vault>,
 
@@ -236,34 +219,14 @@ pub struct ExecuteArbitrageViaRouter<'info> {
     #[account(mut)]
     pub executor_token: Account<'info, TokenAccount>,
 
-    /// CHECK: Verified against vault.swap_router
     pub swap_router_program: UncheckedAccount<'info>,
 
-    /// CHECK: Router state PDA from swap router program
     #[account(mut)]
     pub router_state: UncheckedAccount<'info>,
 
-    /// CHECK: Pool token account for input tokens
-    #[account(mut)]
-    pub pool_token_in: UncheckedAccount<'info>,
-
-    /// CHECK: Pool token account for output tokens
-    #[account(mut)]
-    pub pool_token_out: UncheckedAccount<'info>,
-
-    /// CHECK: Pool account for the DEX
-    #[account(mut)]
-    pub pool_account: UncheckedAccount<'info>,
-
-    /// CHECK: Pool authority PDA
-    pub pool_authority: UncheckedAccount<'info>,
-
-    /// CHECK: DEX program
-    pub dex_program: UncheckedAccount<'info>,
+    pub jupiter_program: UncheckedAccount<'info>,
 
     pub token_program: Program<'info, Token>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
-    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -294,12 +257,10 @@ pub struct Withdraw<'info> {
     pub owner: UncheckedAccount<'info>,
 }
 
-// ========== DATA STRUCTURES ==========
-
 #[account]
 pub struct Vault {
     pub authority: Pubkey,
-    pub swap_router: Pubkey,  
+    pub swap_router: Pubkey,
     pub total_shares: u64,
     pub bump: u8,
 }
@@ -310,10 +271,6 @@ pub struct UserPosition {
     pub shares: u64,
 }
 
-// SwapInstruction is now imported from swap_router
-
-// ========== EVENTS ==========
-
 #[event]
 pub struct ArbitrageExecuted {
     pub executor: Pubkey,
@@ -321,8 +278,6 @@ pub struct ArbitrageExecuted {
     pub executor_fee: u64,
     pub vault_profit: u64,
 }
-
-// ========== ERRORS ==========
 
 #[error_code]
 pub enum ErrorCode {
@@ -332,4 +287,6 @@ pub enum ErrorCode {
     InsufficientShares,
     #[msg("Invalid swap router program")]
     InvalidSwapRouter,
+    #[msg("Math overflow occurred")]
+    MathOverflow,
 }
