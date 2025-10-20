@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { createJupiterRoutes } from './routes/jupiterRoutes';
+import { createJupiterRoutes } from './routes/jupiterRoute';
 
 dotenv.config();
 
