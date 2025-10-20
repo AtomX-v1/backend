@@ -219,11 +219,14 @@ pub struct ExecuteArbitrage<'info> {
     #[account(mut)]
     pub executor_token: Account<'info, TokenAccount>,
 
+    /// CHECK: Verified against vault.swap_router
     pub swap_router_program: UncheckedAccount<'info>,
 
+    /// CHECK: Router state PDA from swap router program
     #[account(mut)]
     pub router_state: UncheckedAccount<'info>,
 
+    /// CHECK: Jupiter V6 program ID
     pub jupiter_program: UncheckedAccount<'info>,
 
     pub token_program: Program<'info, Token>,

@@ -1,6 +1,13 @@
 import axios from 'axios';
 
+// Primary Jupiter API endpoint
 const JUPITER_API_URL = 'https://quote-api.jup.ag/v6';
+
+// Backup endpoints in case primary fails
+const BACKUP_ENDPOINTS = [
+  'https://jupiter-swap-api.quiknode.pro/v6',
+  'https://quote-api.jup.ag/v6'
+];
 
 export interface JupiterQuote {
   inputMint: string;
@@ -47,7 +54,7 @@ export interface JupiterSwapInstructions {
 
 export class JupiterService {
   /**
-   * Get a quote from Jupiter for a swap
+   * Get a quote from Jupiter for a swap with retry logic
    */
   static async getQuote(
     inputMint: string,
@@ -55,34 +62,53 @@ export class JupiterService {
     amount: number,
     slippageBps: number = 50 // 0.5% default slippage
   ): Promise<JupiterQuote> {
-    try {
-      console.log(`🪐 Getting Jupiter quote: ${inputMint} → ${outputMint}`);
-      console.log(`   Amount: ${amount}, Slippage: ${slippageBps} bps`);
+    console.log(`🪐 Getting Jupiter quote: ${inputMint} → ${outputMint}`);
+    console.log(`   Amount: ${amount}, Slippage: ${slippageBps} bps`);
 
-      const response = await axios.get(`${JUPITER_API_URL}/quote`, {
-        params: {
-          inputMint,
-          outputMint,
-          amount,
-          slippageBps,
-          onlyDirectRoutes: false,
-          asLegacyTransaction: false,
-        },
-      });
+    const endpoints = [JUPITER_API_URL, ...BACKUP_ENDPOINTS];
+    
+    for (let i = 0; i < endpoints.length; i++) {
+      const apiUrl = endpoints[i];
+      
+      try {
+        console.log(`   Trying endpoint ${i + 1}/${endpoints.length}: ${apiUrl}`);
+        
+        const response = await axios.get(`${apiUrl}/quote`, {
+          params: {
+            inputMint,
+            outputMint,
+            amount,
+            slippageBps,
+            onlyDirectRoutes: false,
+            asLegacyTransaction: false,
+          },
+          timeout: 10000, // 10 second timeout
+        });
 
-      const quote = response.data;
+        const quote = response.data;
 
-      console.log(`✅ Quote received:`);
-      console.log(`   Input: ${quote.inAmount}`);
-      console.log(`   Output: ${quote.outAmount}`);
-      console.log(`   Price Impact: ${quote.priceImpactPct}%`);
-      console.log(`   Route: ${quote.routePlan.map((r: any) => r.swapInfo.label).join(' → ')}`);
+        console.log(`✅ Quote received from ${apiUrl}:`);
+        console.log(`   Input: ${quote.inAmount}`);
+        console.log(`   Output: ${quote.outAmount}`);
+        console.log(`   Price Impact: ${quote.priceImpactPct}%`);
+        console.log(`   Route: ${quote.routePlan.map((r: any) => r.swapInfo.label).join(' → ')}`);
 
-      return quote;
-    } catch (error: any) {
-      console.error('❌ Error getting Jupiter quote:', error.response?.data || error.message);
-      throw new Error(`Failed to get Jupiter quote: ${error.message}`);
+        return quote;
+      } catch (error: any) {
+        console.warn(`⚠️  Endpoint ${apiUrl} failed: ${error.message}`);
+        
+        // If this is the last endpoint, throw the error
+        if (i === endpoints.length - 1) {
+          console.error('❌ All Jupiter endpoints failed');
+          throw new Error(`Failed to get Jupiter quote from all endpoints: ${error.message}`);
+        }
+        
+        // Wait a bit before trying next endpoint
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
+    
+    throw new Error('All Jupiter endpoints failed');
   }
 
   /**

@@ -11,6 +11,7 @@ declare_id!("EggEs5AbpAp4rMWc8XmHCr8PwgFSmh7fFSH5Hjay9mgW");
 // Jupiter V6 Program ID (Devnet & Mainnet)
 pub const JUPITER_V6: Pubkey = pubkey!("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4");
 
+/// Swap Router Program
 #[program]
 pub mod swap_router {
     use super::*;

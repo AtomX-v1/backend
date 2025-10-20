@@ -2,12 +2,17 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { Vault } from "../target/types/vault";
 import { SwapRouter } from "../target/types/swap_router";
+import * as dotenv from "dotenv";
+dotenv.config();
+
 import { 
   TOKEN_PROGRAM_ID,
   createMint,
   createAccount,
   mintTo,
-  getAccount
+  getAccount,
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccount
 } from "@solana/spl-token";
 import { assert } from "chai";
 
@@ -37,23 +42,35 @@ describe("Vault Tests", () => {
     );
     console.log(" Mint created:", mint.toString());
 
-    // Créer le token account du vault
-    vaultTokenAccount = await createAccount(
-      provider.connection,
-      provider.wallet.payer,
-      mint,
-      provider.wallet.publicKey
+    // Calculer le vault PDA d'abord
+    [vaultPda] = await anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("vault")],
+      vaultProgram.programId
     );
-    console.log(" Vault token account created:", vaultTokenAccount.toString());
 
-    // Créer le token account de l'user
+    // Create user's token account using the simple createAccount function
     userTokenAccount = await createAccount(
       provider.connection,
       provider.wallet.payer,
       mint,
-      provider.wallet.publicKey
+      provider.wallet.publicKey,
+      undefined, // Let it generate a new keypair
+      undefined, // Default confirmOptions
+      TOKEN_PROGRAM_ID
     );
     console.log(" User token account created:", userTokenAccount.toString());
+    
+    // Create vault's token account (also owned by user for simplicity)
+    vaultTokenAccount = await createAccount(
+      provider.connection,
+      provider.wallet.payer,
+      mint,
+      provider.wallet.publicKey,
+      undefined,
+      undefined,
+      TOKEN_PROGRAM_ID
+    );
+    console.log(" Vault token account created:", vaultTokenAccount.toString());
 
     // Mint 1000 tokens à l'user pour tester
     await mintTo(
@@ -66,13 +83,8 @@ describe("Vault Tests", () => {
     );
     console.log(" Minted 1000 tokens to user");
 
-    // Calculer les PDAs
-    [vaultPda] = await anchor.web3.PublicKey.findProgramAddress(
-      [Buffer.from("vault")],
-      vaultProgram.programId
-    );
-
-    [userPositionPda] = await anchor.web3.PublicKey.findProgramAddress(
+    // Calculer le user position PDA
+    [userPositionPda] = await anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("position"), provider.wallet.publicKey.toBuffer()],
       vaultProgram.programId
     );
