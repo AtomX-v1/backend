@@ -1,6 +1,9 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use anchor_spl::associated_token::AssociatedToken;
+use crate::state::*;
+use crate::events::*;
+use crate::errors::ErrorCode;
 declare_id!("EggEs5AbpAp4rMWc8XmHCr8PwgFSmh7fFSH5Hjay9mgW");
 
 #[program]
@@ -38,14 +41,22 @@ pub mod vault {
         } else {
             let vault_balance = ctx.accounts.vault_token.amount;
             amount.checked_mul(vault.total_shares)
-                .unwrap()
+                .ok_or(ErrorCode::MathOverflow)?
                 .checked_div(vault_balance)
-                .unwrap()
+                .ok_or(ErrorCode::MathOverflow)?
         };
 
-        user_position.shares = user_position.shares.checked_add(shares).unwrap();
+        user_position.shares = user_position.shares.checked_add(shares)
+            .ok_or(ErrorCode::MathOverflow)?;
         user_position.owner = ctx.accounts.user.key();
-        vault.total_shares = vault.total_shares.checked_add(shares).unwrap();
+        vault.total_shares = vault.total_shares.checked_add(shares)
+            .ok_or(ErrorCode::MathOverflow)?;
+
+        emit!(Deposited {
+            user: ctx.accounts.user.key(),
+            amount,
+            shares,
+        });
 
         Ok(())
     }
@@ -130,9 +141,9 @@ pub mod vault {
         let vault_balance = ctx.accounts.vault_token.amount;
         let amount = shares
             .checked_mul(vault_balance)
-            .unwrap()
+            .ok_or(ErrorCode::MathOverflow)?
             .checked_div(vault.total_shares)
-            .unwrap();
+            .ok_or(ErrorCode::MathOverflow)?;
 
         let vault_bump = vault.bump;
         let seeds = &[b"vault".as_ref(), &[vault_bump]];
@@ -151,8 +162,16 @@ pub mod vault {
             amount,
         )?;
 
-        user_position.shares = user_position.shares.checked_sub(shares).unwrap();
-        vault.total_shares = vault.total_shares.checked_sub(shares).unwrap();
+        user_position.shares = user_position.shares.checked_sub(shares)
+            .ok_or(ErrorCode::MathOverflow)?;
+        vault.total_shares = vault.total_shares.checked_sub(shares)
+            .ok_or(ErrorCode::MathOverflow)?;
+
+        emit!(Withdrawn {
+            user: ctx.accounts.user.key(),
+            amount,
+            shares,
+        });
 
         Ok(())
     }
@@ -163,7 +182,7 @@ pub struct InitializeVault<'info> {
     #[account(
         init,
         payer = authority,
-        space = 8 + 32 + 32 + 8 + 1,
+        space = Vault::LEN,
         seeds = [b"vault"],
         bump
     )]
@@ -186,7 +205,7 @@ pub struct Deposit<'info> {
     #[account(
         init_if_needed,
         payer = user,
-        space = 8 + 32 + 8,
+        space = UserPosition::LEN,
         seeds = [b"position", user.key().as_ref()],
         bump
     )]
@@ -258,38 +277,4 @@ pub struct Withdraw<'info> {
 
     /// CHECK: Verified through has_one
     pub owner: UncheckedAccount<'info>,
-}
-
-#[account]
-pub struct Vault {
-    pub authority: Pubkey,
-    pub swap_router: Pubkey,
-    pub total_shares: u64,
-    pub bump: u8,
-}
-
-#[account]
-pub struct UserPosition {
-    pub owner: Pubkey,
-    pub shares: u64,
-}
-
-#[event]
-pub struct ArbitrageExecuted {
-    pub executor: Pubkey,
-    pub profit: u64,
-    pub executor_fee: u64,
-    pub vault_profit: u64,
-}
-
-#[error_code]
-pub enum ErrorCode {
-    #[msg("Insufficient profit from arbitrage")]
-    InsufficientProfit,
-    #[msg("Insufficient shares to withdraw")]
-    InsufficientShares,
-    #[msg("Invalid swap router program")]
-    InvalidSwapRouter,
-    #[msg("Math overflow occurred")]
-    MathOverflow,
 }
