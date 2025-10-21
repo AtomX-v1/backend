@@ -1,32 +1,33 @@
 import { ScannerConfig } from './types';
 
+export const PROGRAM_IDS = {
+  VAULT: 'EggEs5AbpAp4rMWc8XmHCr8PwgFSmh7fFSH5Hjay9mgW',
+  SWAP_ROUTER: 'EggEs5AbpAp4rMWc8XmHCr8PwgFSmh7fFSH5Hjay9mgW',
+  JUPITER_V6: 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4',
+};
+
+export const FEES = {
+  SOLANA_TX_FEE: 0.000005,
+  PLATFORM_FEE_BPS: 10,
+  EXECUTOR_FEE_BPS: 1000,
+  JUPITER_FEE_BPS: 4,
+};
+
 export const DEFAULT_CONFIG: ScannerConfig = {
-  // Popular trading pairs for arbitrage
   pairs: [
-    // SOL pairs
-    { tokenA: 'So11111111111111111111111111111111111111112', tokenB: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' }, // SOL/USDC
-    { tokenA: 'So11111111111111111111111111111111111111112', tokenB: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB' }, // SOL/USDT
-    
-    // USDC pairs  
-    { tokenA: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', tokenB: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB' }, // USDC/USDT
-    
-    // Popular altcoins vs stables
-    { tokenA: 'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', tokenB: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' }, // mSOL/USDC
-    { tokenA: 'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn', tokenB: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' }, // JTO/USDC
-    { tokenA: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', tokenB: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' }, // BONK/USDC
+    { tokenA: 'So11111111111111111111111111111111111111112', tokenB: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' },
+    { tokenA: 'So11111111111111111111111111111111111111112', tokenB: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB' },
+    { tokenA: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', tokenB: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB' },
+    { tokenA: 'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', tokenB: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' },
+    { tokenA: 'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn', tokenB: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' },
+    { tokenA: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', tokenB: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' },
   ],
-  
-  // Profit thresholds
-  minProfitUSD: 5.0,        // Minimum $5 profit
-  minProfitPercentage: 0.5, // Minimum 0.5% profit
-  
-  // Test with $100 equivalent for price discovery
+
+  minProfitUSD: 5.0,
+  minProfitPercentage: 0.5,
   testVolume: 100,
-  
-  // Scan every 30 seconds
   scanInterval: 30000,
-  
-  // Prioritize liquid DEXes
+
   priorityDEXes: [
     'Orca',
     'Raydium',
@@ -36,10 +37,9 @@ export const DEFAULT_CONFIG: ScannerConfig = {
     'Serum',
     'Saber'
   ],
-  
-  // Risk management
-  maxPriceImpact: 1.0,  // Max 1% price impact
-  maxSlippage: 0.5,     // Max 0.5% slippage
+
+  maxPriceImpact: 1.0,
+  maxSlippage: 0.5,
 };
 
 // Token metadata for common tokens

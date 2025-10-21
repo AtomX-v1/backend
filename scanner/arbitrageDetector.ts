@@ -79,26 +79,32 @@ export class ArbitrageDetector {
   }
 
   /**
-   * Calculate profit in USD
+   * Calculate profit in USD with fees and slippage
    */
   private static calculateProfitUSD(
     buyPrice: number,
     sellPrice: number,
     volumeUSD: number,
-    _tokenA: Token,
-    _tokenB: Token
+    tokenA: Token,
+    tokenB: Token
   ): number {
-    // Simple profit calculation based on price difference
-    // In real implementation, you'd want to account for:
-    // - Gas fees
-    // - Platform fees
-    // - Slippage
-    // - MEV protection costs
-    
+    const { FEES } = require('./config');
+
     const priceDifference = sellPrice - buyPrice;
-    const profitRatio = priceDifference / buyPrice;
-    
-    return volumeUSD * profitRatio;
+    let grossProfit = volumeUSD * (priceDifference / buyPrice);
+
+    const jupiterFee = volumeUSD * (FEES.JUPITER_FEE_BPS / 10000);
+    const platformFee = volumeUSD * (FEES.PLATFORM_FEE_BPS / 10000);
+    const executorFee = grossProfit * (FEES.EXECUTOR_FEE_BPS / 10000);
+
+    const SOL_PRICE_USD = 150;
+    const gasFee = FEES.SOLANA_TX_FEE * SOL_PRICE_USD;
+
+    const totalFees = jupiterFee + platformFee + executorFee + gasFee;
+
+    const netProfit = grossProfit - totalFees;
+
+    return netProfit;
   }
 
   /**

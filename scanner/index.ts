@@ -1,92 +1,67 @@
-#!/usr/bin/env ts-node
-
-import * as dotenv from 'dotenv';
-dotenv.config();
-
+import { Connection, Keypair } from '@solana/web3.js';
+import { AnchorProvider, Wallet, Program } from '@coral-xyz/anchor';
 import { ArbitrageScanner } from './scanner';
-import { ScannerConfig } from './types';
+import { ArbitrageExecutor } from './executor';
+import { PROGRAM_IDS } from './config';
+import VaultIDL from '../target/idl/vault.json';
 
-// CLI interface for the scanner
+const RPC_ENDPOINT = process.env.RPC_ENDPOINT || 'https://api.devnet.solana.com';
+const AUTO_EXECUTE = process.env.AUTO_EXECUTE === 'true';
+
 async function main() {
-  console.log(' AtomX Arbitrage Scanner');
-  console.log('━'.repeat(50));
-  
-  // Check for demo mode flag
-  const demoMode = process.argv.includes('--demo') || process.argv.includes('-d');
-  
-  if (demoMode) {
-    console.log('Starting in DEMO MODE (using mock data)');
+  const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+
+  let wallet: Wallet;
+  if (process.env.PRIVATE_KEY) {
+    const keypair = Keypair.fromSecretKey(
+      Buffer.from(JSON.parse(process.env.PRIVATE_KEY))
+    );
+    wallet = new Wallet(keypair);
   } else {
-    console.log(' Starting in LIVE MODE (using Jupiter API)');
-    console.log(' Use --demo flag to run with mock data if API is unavailable');
+    wallet = new Wallet(Keypair.generate());
   }
 
-  // Custom configuration (can be modified)
-  const customConfig: Partial<ScannerConfig> = {
-    // Scan every 45 seconds instead of default 30
-    scanInterval: 45000,
-    
-    // Lower minimum profit for testing
-    minProfitUSD: 2.0,
-    minProfitPercentage: 0.3,
-    
-    // Increase test volume for better price discovery
-    testVolume: 200,
-    
-    // Focus on major pairs for better liquidity
-    pairs: [
-      // High volume pairs
-      { tokenA: 'So11111111111111111111111111111111111111112', tokenB: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' }, // SOL/USDC
-      { tokenA: 'So11111111111111111111111111111111111111112', tokenB: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB' }, // SOL/USDT
-      { tokenA: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', tokenB: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB' }, // USDC/USDT
-      
-      // Additional popular pairs
-      { tokenA: 'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', tokenB: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' }, // mSOL/USDC
-    ]
-  };
+  const provider = new AnchorProvider(connection, wallet, {
+    commitment: 'confirmed'
+  });
 
-  const scanner = new ArbitrageScanner(customConfig, demoMode);
+  const vaultProgram = new Program(VaultIDL as any, provider);
 
-  // Handle graceful shutdown
+  const scanner = new ArbitrageScanner({
+    scanInterval: 30000,
+    minProfitUSD: 5,
+    minProfitPercentage: 0.5
+  });
+
+  const executor = new ArbitrageExecutor(connection, wallet, vaultProgram);
+
+  scanner.start();
+
+  if (AUTO_EXECUTE) {
+    setInterval(async () => {
+      const opportunities = scanner.getLastOpportunities();
+      if (opportunities.length > 0) {
+        await executor.autoExecute(opportunities);
+      }
+    }, 60000);
+  }
+
   process.on('SIGINT', () => {
-    console.log('\n Received SIGINT, shutting down gracefully...');
-    scanner.stop();
-    
-    // Show final stats
-    const stats = scanner.getStats();
-    console.log('\n Final Statistics:');
-    console.log(`   Total scans: ${stats.scanCount}`);
-    console.log(`   Last opportunities: ${stats.totalOpportunities}`);
-    
-    process.exit(0);
-  });
-
-  process.on('SIGTERM', () => {
-    console.log('\n Received SIGTERM, shutting down gracefully...');
     scanner.stop();
     process.exit(0);
   });
-
-  // Start scanning
-  try {
-    await scanner.start();
-  } catch (error: any) {
-    console.error(' Scanner crashed:', error.message);
-    process.exit(1);
-  }
 }
 
-// Export for programmatic use
 export { ArbitrageScanner } from './scanner';
 export { ArbitrageDetector } from './arbitrageDetector';
 export { PriceService } from './priceService';
+export { ArbitrageExecutor } from './executor';
 export * from './types';
 export * from './config';
 
-// Run if called directly
 if (require.main === module) {
   main().catch(error => {
-    console.error(' Fatal error:', error);
+    console.error(error);
     process.exit(1);
   });
 }
