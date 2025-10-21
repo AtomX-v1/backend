@@ -1,4 +1,4 @@
-import { JupiterService, JupiterQuote } from '../src/services/jupiterService';
+import { JupiterService, JupiterQuote } from './src/services/jupiterService';
 import { DEXPrice, Token } from './types';
 import { TOKEN_REGISTRY } from './config';
 
@@ -18,18 +18,18 @@ export class PriceService {
         return usdAmount * 1_000_000; // 6 decimals
       }
       
-      // Get quote from USDC to target token
-      const usdcAmount = usdAmount * 1_000_000; // 6 decimals for USDC
-      const quote = await JupiterService.getQuote(
-        USDC_MINT,
-        tokenMint,
-        usdcAmount,
-        50 // 0.5% slippage
-      );
+      // Get token price using Jupiter Price API
+      const priceData = await JupiterService.getPrices([tokenMint]);
+      const tokenPrice = priceData[tokenMint];
       
-      return parseInt(quote.outAmount);
+      if (tokenPrice && tokenPrice.usdPrice > 0) {
+        const tokenAmount = usdAmount / tokenPrice.usdPrice;
+        return Math.floor(tokenAmount * Math.pow(10, tokenPrice.decimals));
+      }
+      
+      throw new Error(`No price data for ${tokenMint}`);
     } catch (error) {
-      console.warn(`  Could not get token amount for ${tokenMint}, using default`);
+      console.warn(`[PRICE] Could not get token amount for ${tokenMint.slice(0, 8)}..., using default`);
       // Fallback: assume token is worth $1 and use appropriate decimals
       const tokenInfo = TOKEN_REGISTRY[tokenMint];
       const decimals = tokenInfo?.decimals || 9;
@@ -50,8 +50,10 @@ export class PriceService {
       const amountA = await this.getTokenAmountForUSD(tokenA.mint, testVolumeUSD);
       const amountB = await this.getTokenAmountForUSD(tokenB.mint, testVolumeUSD);
 
-      console.log(` Getting prices for ${tokenA.symbol}/${tokenB.symbol}`);
-      console.log(`   Test volume: $${testVolumeUSD} (~${amountA} ${tokenA.symbol}, ~${amountB} ${tokenB.symbol})`);
+      console.log(`\n[SCAN] =================================`);
+      console.log(`[SCAN] Scanning ${tokenA.symbol}/${tokenB.symbol} pair`);
+      console.log(`[SCAN] Test volume: $${testVolumeUSD}`);
+      console.log(`[SCAN] Token amounts: ${amountA.toLocaleString()} ${tokenA.symbol}, ${amountB.toLocaleString()} ${tokenB.symbol}`);
 
       const forward: DEXPrice[] = [];
       const reverse: DEXPrice[] = [];
@@ -82,7 +84,7 @@ export class PriceService {
           timestamp: Date.now()
         });
       } catch (error) {
-        console.warn(`  Could not get forward quote for ${tokenA.symbol} -> ${tokenB.symbol}`);
+        console.warn(`[SCAN] Could not get forward quote for ${tokenA.symbol} -> ${tokenB.symbol}`);
       }
 
       // Get reverse direction: B -> A
@@ -111,14 +113,72 @@ export class PriceService {
           timestamp: Date.now()
         });
       } catch (error) {
-        console.warn(`  Could not get reverse quote for ${tokenB.symbol} -> ${tokenA.symbol}`);
+        console.warn(`[SCAN] Could not get reverse quote for ${tokenB.symbol} -> ${tokenA.symbol}`);
       }
 
+      // Log price summary
+      this.logPriceSummary(tokenA, tokenB, forward, reverse, testVolumeUSD);
+      
       return { forward, reverse };
     } catch (error: any) {
-      console.error(` Error getting prices for ${tokenA.symbol}/${tokenB.symbol}:`, error.message);
+      console.error(`[SCAN] Error getting prices for ${tokenA.symbol}/${tokenB.symbol}:`, error.message);
       return { forward: [], reverse: [] };
     }
+  }
+
+  /**
+   * Log price summary for a trading pair
+   */
+  private static logPriceSummary(
+    tokenA: Token,
+    tokenB: Token,
+    forward: DEXPrice[],
+    reverse: DEXPrice[],
+    testVolumeUSD: number
+  ): void {
+    console.log(`[SCAN] ----- PRICE SUMMARY -----`);
+    
+    if (forward.length > 0) {
+      const forwardPrice = forward[0];
+      console.log(`[SCAN] ${tokenA.symbol} -> ${tokenB.symbol}:`);
+      console.log(`[SCAN]   Price: ${forwardPrice.price.toFixed(8)} ${tokenB.symbol} per ${tokenA.symbol}`);
+      console.log(`[SCAN]   Impact: ${forwardPrice.priceImpact.toFixed(4)}%`);
+      console.log(`[SCAN]   DEX: ${forwardPrice.dex}`);
+      console.log(`[SCAN]   Route: ${forwardPrice.route.join(' -> ')}`);
+    } else {
+      console.log(`[SCAN] ${tokenA.symbol} -> ${tokenB.symbol}: NO ROUTE FOUND`);
+    }
+    
+    if (reverse.length > 0) {
+      const reversePrice = reverse[0];
+      console.log(`[SCAN] ${tokenB.symbol} -> ${tokenA.symbol}:`);
+      console.log(`[SCAN]   Price: ${reversePrice.price.toFixed(8)} ${tokenA.symbol} per ${tokenB.symbol}`);
+      console.log(`[SCAN]   Impact: ${reversePrice.priceImpact.toFixed(4)}%`);
+      console.log(`[SCAN]   DEX: ${reversePrice.dex}`);
+      console.log(`[SCAN]   Route: ${reversePrice.route.join(' -> ')}`);
+    } else {
+      console.log(`[SCAN] ${tokenB.symbol} -> ${tokenA.symbol}: NO ROUTE FOUND`);
+    }
+    
+    // Calculate potential arbitrage
+    if (forward.length > 0 && reverse.length > 0) {
+      const forwardRate = forward[0].price;
+      const reverseRate = 1 / reverse[0].price;
+      const priceDiff = Math.abs(forwardRate - reverseRate);
+      const avgPrice = (forwardRate + reverseRate) / 2;
+      const spreadPercent = (priceDiff / avgPrice) * 100;
+      
+      console.log(`[SCAN] ARBITRAGE OPPORTUNITY:`);
+      console.log(`[SCAN]   Price Spread: ${spreadPercent.toFixed(4)}%`);
+      console.log(`[SCAN]   Forward Rate: ${forwardRate.toFixed(8)}`);
+      console.log(`[SCAN]   Reverse Rate: ${reverseRate.toFixed(8)}`);
+      
+      if (spreadPercent > 0.1) {
+        console.log(`[SCAN]   *** PROFITABLE OPPORTUNITY DETECTED ***`);
+      }
+    }
+    
+    console.log(`[SCAN] =================================\n`);
   }
 
   /**

@@ -1,6 +1,6 @@
 import { ArbitrageOpportunity } from './types';
 import { PROGRAM_IDS, FEES } from './config';
-import { JupiterService } from '../src/services/jupiterService';
+import { JupiterService } from './src/services/jupiterService';
 import { Connection, PublicKey, Transaction, VersionedTransaction, TransactionInstruction, ComputeBudgetProgram } from '@solana/web3.js';
 import * as anchor from '@coral-xyz/anchor';
 import { BN } from '@coral-xyz/anchor';
@@ -38,22 +38,14 @@ export class ArbitrageExecutor {
       50
     );
 
-    const swapResponse = await JupiterService.getSwapTransaction(
+    const swapResponse = await JupiterService.getSwapInstructions(
       quoteResponse,
-      this.wallet.publicKey.toString(),
-      {
-        dynamicComputeUnitLimit: true,
-        priorityLevelWithMaxLamports: {
-          maxLamports: 10000000,
-          priorityLevel: 'high'
-        }
-      }
+      this.wallet.publicKey.toString()
     );
 
-    const swapTransactionBuf = Buffer.from(swapResponse.swapTransaction, 'base64');
-    const transaction = VersionedTransaction.deserialize(swapTransactionBuf);
-
-    return transaction;
+    // TODO: This method needs to be updated to properly build a transaction from instructions
+    // For now, throw an error as this method is not fully implemented
+    throw new Error('buildArbitrageTransaction not fully implemented - use executeArbitrage instead');
   }
 
   async buildVaultArbitrageInstruction(
@@ -71,15 +63,13 @@ export class ArbitrageExecutor {
       50
     );
 
-    const swapResponse = await JupiterService.getSwapTransaction(
+    const swapResponse = await JupiterService.getSwapInstructions(
       quoteResponse,
-      this.wallet.publicKey.toString(),
-      {}
+      this.wallet.publicKey.toString()
     );
 
-    const swapTransactionBuf = Buffer.from(swapResponse.swapTransaction, 'base64');
-    const jupiterTx = VersionedTransaction.deserialize(swapTransactionBuf);
-    const jupiterInstructionData = jupiterTx.message.compiledInstructions[0].data;
+    // Extract instruction data from Jupiter response
+    const jupiterInstructionData = Buffer.from(swapResponse.swapInstruction.data, 'base64');
 
     const vaultPDA = PublicKey.findProgramAddressSync(
       [Buffer.from('vault')],
@@ -96,14 +86,14 @@ export class ArbitrageExecutor {
     const vaultTokenAccount = new PublicKey(tokenA.mint);
     const executorTokenAccount = new PublicKey(tokenA.mint);
 
-    const remainingAccounts = jupiterTx.message.getAccountKeys().staticAccountKeys.map(key => ({
-      pubkey: key,
-      isSigner: false,
-      isWritable: true
+    const remainingAccounts = swapResponse.swapInstruction.accounts.map(account => ({
+      pubkey: new PublicKey(account.pubkey),
+      isSigner: account.isSigner,
+      isWritable: account.isWritable
     }));
 
     const instruction = await this.vaultProgram.methods
-      .executeArbitrage(Buffer.from(jupiterInstructionData), minProfitLamports)
+      .executeArbitrage(jupiterInstructionData, minProfitLamports)
       .accounts({
         vault: vaultPDA,
         vaultToken: vaultTokenAccount,
