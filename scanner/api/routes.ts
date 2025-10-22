@@ -1,7 +1,7 @@
 import express from 'express';
-import { ArbitrageScanner } from '../scanner';
-import { ArbitrageDetector } from '../arbitrageDetector';
-import { DEFAULT_CONFIG } from '../config';
+import { ArbitrageScanner } from './scanner';
+import { ArbitrageDetector } from './arbitrageDetector';
+import { DEFAULT_CONFIG } from './config';
 import { logStreamer } from './logStreamer';
 
 const router = express.Router();
