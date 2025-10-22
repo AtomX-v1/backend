@@ -7,19 +7,19 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-swap_router = "EggEs5AbpAp4rMWc8XmHCr8PwgFSmh7fFSH5Hjay9mgW"
-vault = "EggEs5AbpAp4rMWc8XmHCr8PwgFSmh7fFSH5Hjay9mgW"
+swap_router = "AgcU7r6U5uPEfFccmhYdMLcjckADdfoJ8QcHCgkG74Zg"
+vault = "2ea7vwH3ziuFKC2DBwp81MjQpkTTbf4nhNefedcKREDy"
 
 [programs.devnet]
-swap_router = "EggEs5AbpAp4rMWc8XmHCr8PwgFSmh7fFSH5Hjay9mgW"
-vault = "EggEs5AbpAp4rMWc8XmHCr8PwgFSmh7fFSH5Hjay9mgW"
+swap_router = "AgcU7r6U5uPEfFccmhYdMLcjckADdfoJ8QcHCgkG74Zg"
+vault = "2ea7vwH3ziuFKC2DBwp81MjQpkTTbf4nhNefedcKREDy"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
 cluster = "devnet"
-wallet = "~/.config/solana/phantom-wallet.json" 
+wallet = "~/.config/solana/id.json" 
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 \"tests/**/*.ts\""
