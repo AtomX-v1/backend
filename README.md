@@ -1,6 +1,6 @@
 # AtomX Backend
 
-Solana arbitrage protocol with Cross Program Invocation swap routing and vault management.
+Solana arbitrage protocol with Cross Program Invocation swap routing + vault system.
 
 ## Architecture
 
