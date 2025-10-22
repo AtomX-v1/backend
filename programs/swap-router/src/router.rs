@@ -40,7 +40,7 @@ pub mod swap_router {
         ctx: Context<ExecuteJupiterSwap>,
         jupiter_instruction_data: Vec<u8>,
     ) -> Result<()> {
-        msg!("🪐 Executing Jupiter swap");
+        msg!(" Executing Jupiter swap");
         
         // Validate Jupiter program
         require!(
@@ -89,7 +89,7 @@ pub mod swap_router {
         jupiter_instruction_data: Vec<u8>,
         vault_seeds: Vec<Vec<u8>>,
     ) -> Result<()> {
-        msg!("🪐 Executing Jupiter swap with vault authority");
+        msg!(" Executing Jupiter swap with vault authority");
         
         require!(
             ctx.accounts.jupiter_program.key() == JUPITER_V6,

@@ -14,4 +14,10 @@ pub enum ErrorCode {
     InvalidAuthority,
     #[msg("Slippage tolerance exceeded")]
     SlippageExceeded,
+    #[msg("Invalid token mint - only SOL/WSOL supported")]
+    InvalidTokenMint,
+    #[msg("Insufficient vault balance")]
+    InsufficientVaultBalance,
+    #[msg("Invalid minimum profit requirement")]
+    InvalidMinProfit,
 }

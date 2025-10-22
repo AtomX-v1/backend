@@ -6,6 +6,9 @@ use crate::events::*;
 use crate::errors::ErrorCode;
 declare_id!("EggEs5AbpAp4rMWc8XmHCr8PwgFSmh7fFSH5Hjay9mgW");
 
+// Wrapped SOL mint address
+pub const WSOL_MINT: Pubkey = pubkey!("So11111111111111111111111111111111111111112");
+
 #[program]
 pub mod vault {
     use super::*;
@@ -68,7 +71,22 @@ pub mod vault {
     ) -> Result<()> {
         let vault = &ctx.accounts.vault;
 
+        // Validate that this is a SOL-based arbitrage
+        require!(
+            ctx.accounts.vault_token.mint == WSOL_MINT,
+            ErrorCode::InvalidTokenMint
+        );
+        require!(
+            ctx.accounts.executor_token.mint == WSOL_MINT,
+            ErrorCode::InvalidTokenMint
+        );
+        
+        // Ensure vault has sufficient balance for arbitrage
         let initial_balance = ctx.accounts.vault_token.amount;
+        require!(initial_balance > 0, ErrorCode::InsufficientVaultBalance);
+        
+        // Validate minimum profit requirement
+        require!(min_profit > 0, ErrorCode::InvalidMinProfit);
 
         let vault_bump = vault.bump;
         let vault_seeds_data = vec![b"vault".to_vec(), vec![vault_bump]];
@@ -97,10 +115,15 @@ pub mod vault {
         ctx.accounts.vault_token.reload()?;
         let final_balance = ctx.accounts.vault_token.amount;
 
+        // Calculate actual profit (must be positive)
+        require!(final_balance > initial_balance, ErrorCode::InsufficientProfit);
         let profit = final_balance.checked_sub(initial_balance)
             .ok_or(ErrorCode::InsufficientProfit)?;
 
+        // Enforce minimum profit requirement
         require!(profit >= min_profit, ErrorCode::InsufficientProfit);
+        
+        msg!("Arbitrage executed: Initial={}, Final={}, Profit={}", initial_balance, final_balance, profit);
 
         let executor_fee = profit.checked_mul(10)
             .and_then(|v| v.checked_div(100))
