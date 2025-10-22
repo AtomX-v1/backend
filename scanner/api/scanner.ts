@@ -69,7 +69,7 @@ export class ArbitrageScanner {
         );
 
         opportunities.push(...pairOpportunities);
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
       } catch (error: any) {
         errors.push(`${pair.tokenA}/${pair.tokenB}: ${error.message}`);

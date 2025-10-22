@@ -113,7 +113,9 @@ export class JupiterService {
   static async getPrices(tokenMints: string[]): Promise<JupiterPriceData> {
     try {
       console.log(`[PRICE] Fetching prices for ${tokenMints.length} tokens`);
-      
+
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       const response = await axios.get(`${JUPITER_PRICE_API_URL}/price/v3`, {
         params: {
           ids: tokenMints.join(',')
@@ -123,14 +125,17 @@ export class JupiterService {
 
       const prices = response.data;
       console.log(`[PRICE] Successfully received ${Object.keys(prices).length} token prices`);
-      
-      // Log individual prices for debugging
+
       Object.entries(prices).forEach(([mint, data]: [string, any]) => {
         console.log(`[PRICE] ${mint.slice(0, 8)}... = $${data.usdPrice.toFixed(6)}`);
       });
 
       return prices;
     } catch (error: any) {
+      if (error.response?.status === 429) {
+        console.error(`[PRICE] Rate limited, waiting...`);
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
       console.error(`[PRICE] Error fetching prices: ${error.message}`);
       throw new Error(`Failed to get token prices: ${error.message}`);
     }
@@ -143,10 +148,12 @@ export class JupiterService {
     inputMint: string,
     outputMint: string,
     amount: number,
-    slippageBps: number = 50 // 0.5% default slippage
+    slippageBps: number = 50
   ): Promise<JupiterUltraOrder> {
     console.log(`[ROUTE] Getting quote: ${inputMint.slice(0, 8)}... -> ${outputMint.slice(0, 8)}...`);
     console.log(`[ROUTE] Amount: ${amount.toLocaleString()}, Slippage: ${slippageBps} bps`);
+
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     try {
       const response = await axios.get(`${JUPITER_ULTRA_API_URL}/order`, {
@@ -154,9 +161,8 @@ export class JupiterService {
           inputMint,
           outputMint,
           amount: amount.toString(),
-          // Don't include taker for quotes - this makes it a quote-only request
         },
-        timeout: 15000, // 15 second timeout
+        timeout: 15000,
       });
 
       const order = response.data;
@@ -170,6 +176,10 @@ export class JupiterService {
 
       return order;
     } catch (error: any) {
+      if (error.response?.status === 429) {
+        console.error(`[ROUTE] Rate limited, waiting...`);
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
       console.error(`[ROUTE] Quote failed: ${error.message}`);
       throw new Error(`Failed to get Jupiter Ultra order: ${error.message}`);
     }
