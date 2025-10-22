@@ -91,6 +91,11 @@ class LogStreamer {
         return String(arg);
       }).join(' ');
 
+      // Skip WebSocket broadcast logs to avoid infinite loop
+      if (message.includes('[WS]') || message.includes('Broadcasted to')) {
+        return;
+      }
+
       // Parse category from message (e.g., [PRICE], [ROUTE], [SCAN])
       const categoryMatch = message.match(/^\[([A-Z-]+)\]/);
       const category = categoryMatch ? categoryMatch[1] : 'GENERAL';
