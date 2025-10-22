@@ -1,0 +1,1 @@
+web: cd api && node -r ts-node/register server.ts

@@ -5,11 +5,11 @@ import scannerRoutes from './routes';
 import { scannerWebSocket } from './websocket';
 
 const app = express();
-const PORT = process.env.SCANNER_PORT || 3002;
+const PORT = process.env.PORT || process.env.SCANNER_PORT || 3002;
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001'], // Add your frontend URLs
+  origin: true, // Allow all origins for production
   credentials: true
 }));
 app.use(express.json());
