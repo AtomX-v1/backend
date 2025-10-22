@@ -28,8 +28,7 @@ router.post('/start', async (req, res) => {
 
     console.log('[API] Starting arbitrage scanner...');
 
-    // Start log streaming to WebSocket - DISABLED TO PREVENT INFINITE LOOP
-    // logStreamer.start();
+    logStreamer.start();
 
     scannerInstance = new ArbitrageScanner({
       scanInterval: req.body.scanInterval || DEFAULT_CONFIG.scanInterval,
@@ -76,8 +75,7 @@ router.post('/stop', (req, res) => {
       scannerInstance = null;
     }
 
-    // Stop log streaming - DISABLED
-    // logStreamer.stop();
+    logStreamer.stop();
 
     // Update status
     scannerStatus.isRunning = false;
