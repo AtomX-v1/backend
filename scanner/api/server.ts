@@ -21,6 +21,37 @@ app.use((req, res, next) => {
   next();
 });
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    service: 'AtomX Arbitrage Scanner API',
+    version: '1.0.0',
+    status: 'running',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/health',
+      scanner: {
+        start: 'POST /api/scanner/start',
+        stop: 'POST /api/scanner/stop',
+        status: 'GET /api/scanner/status',
+        opportunities: 'GET /api/scanner/opportunities',
+        config: 'GET /api/scanner/config',
+        scan: 'POST /api/scanner/scan',
+        health: 'GET /api/scanner/health'
+      },
+      websocket: {
+        connection: 'ws://[host]/ws/scanner',
+        stats: 'GET /api/ws/stats'
+      },
+      logs: {
+        start: 'POST /api/scanner/logs/start',
+        stop: 'POST /api/scanner/logs/stop',
+        status: 'GET /api/scanner/logs/status'
+      }
+    }
+  });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
