@@ -1,6 +1,8 @@
 {
   "license": "ISC",
   "scripts": {
+    "start": "cd scanner && npm start",
+    "postinstall": "cd scanner && npm install",
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
     "scanner": "ts-node scanner/index.ts",
