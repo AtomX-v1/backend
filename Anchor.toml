@@ -8,11 +8,11 @@ skip-lint = false
 
 [programs.localnet]
 swap_router = "AgcU7r6U5uPEfFccmhYdMLcjckADdfoJ8QcHCgkG74Zg"
-vault = "2ea7vwH3ziuFKC2DBwp81MjQpkTTbf4nhNefedcKREDy"
+vault = "6Y9Zhzdpfjt7qL59WA1Q8WMVRVoXhdpcTKKP1Uw4FLXz"
 
 [programs.devnet]
 swap_router = "AgcU7r6U5uPEfFccmhYdMLcjckADdfoJ8QcHCgkG74Zg"
-vault = "2ea7vwH3ziuFKC2DBwp81MjQpkTTbf4nhNefedcKREDy"
+vault = "6Y9Zhzdpfjt7qL59WA1Q8WMVRVoXhdpcTKKP1Uw4FLXz"
 
 [registry]
 url = "https://api.apr.dev"

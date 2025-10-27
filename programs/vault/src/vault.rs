@@ -4,7 +4,7 @@ use anchor_spl::associated_token::AssociatedToken;
 use crate::state::*;
 use crate::events::*;
 use crate::errors::ErrorCode;
-declare_id!("2ea7vwH3ziuFKC2DBwp81MjQpkTTbf4nhNefedcKREDy");
+declare_id!("6Y9Zhzdpfjt7qL59WA1Q8WMVRVoXhdpcTKKP1Uw4FLXz");
 
 // Wrapped SOL mint address
 pub const WSOL_MINT: Pubkey = pubkey!("So11111111111111111111111111111111111111112");
@@ -162,11 +162,19 @@ pub mod vault {
         require!(user_position.shares >= shares, ErrorCode::InsufficientShares);
 
         let vault_balance = ctx.accounts.vault_token.amount;
-        let amount = shares
-            .checked_mul(vault_balance)
-            .ok_or(ErrorCode::MathOverflow)?
-            .checked_div(vault.total_shares)
-            .ok_or(ErrorCode::MathOverflow)?;
+
+        let amount = if shares == vault.total_shares {
+            vault_balance
+        } else {
+            let numerator = (shares as u128)
+                .checked_mul(vault_balance as u128)
+                .ok_or(ErrorCode::MathOverflow)?;
+            let amount_u128 = numerator
+                .checked_div(vault.total_shares as u128)
+                .ok_or(ErrorCode::MathOverflow)?;
+            amount_u128.try_into()
+                .map_err(|_| ErrorCode::MathOverflow)?
+        };
 
         let vault_bump = vault.bump;
         let seeds = &[b"vault".as_ref(), &[vault_bump]];
