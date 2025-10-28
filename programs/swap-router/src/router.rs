@@ -6,7 +6,7 @@ use anchor_lang::solana_program::{
 use anchor_spl::token::Token;
 use anchor_lang::system_program::System;
 
-declare_id!("AgcU7r6U5uPEfFccmhYdMLcjckADdfoJ8QcHCgkG74Zg");
+declare_id!("EoUeQknw3Mt1jbpHT6KCADu9YmD5ZgT1JFZSTDV8mNdP");
 
 // Jupiter V6 Program ID (Devnet & Mainnet)
 pub const JUPITER_V6: Pubkey = pubkey!("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4");

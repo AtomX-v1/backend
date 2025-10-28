@@ -4,7 +4,7 @@ use anchor_spl::associated_token::AssociatedToken;
 use crate::state::*;
 use crate::events::*;
 use crate::errors::ErrorCode;
-declare_id!("6Y9Zhzdpfjt7qL59WA1Q8WMVRVoXhdpcTKKP1Uw4FLXz");
+declare_id!("J9L1xWf6Krkg7284UThzykxNZ133Sw7Kk2fLHJ2cpKSn");
 
 // Wrapped SOL mint address
 pub const WSOL_MINT: Pubkey = pubkey!("So11111111111111111111111111111111111111112");
